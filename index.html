@@ -1,417 +1,174 @@
 <!DOCTYPE html>
 <html lang="hu">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta charset="UTF-8">
   <title>Photo Print Positioner (PPP)</title>
   <style>
-    *, *::before, *::after { box-sizing: border-box; }
-    body {
-      margin: 0;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background: #f5f7fa;
-      color: #333;
-      line-height: 1.6;
-      min-height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      padding: 20px;
-    }
-    h1 {
-      font-weight: 700;
-      color: #2c3e50;
-      margin-bottom: 1rem;
-      text-align: center;
-    }
-    .container {
-      background: white;
-      border-radius: 12px;
-      box-shadow: 0 8px 24px rgb(0 0 0 / 0.1);
-      max-width: 800px;
-      width: 100%;
-      padding: 25px 30px;
-    }
-    label {
-      display: flex;
-      flex-direction: column;
-      font-weight: 600;
-      margin-bottom: 10px;
-      color: #34495e;
-      font-size: 0.95rem;
-    }
-    input[type="file"] {
-      padding: 5px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-    }
-    input[type="number"] {
-      padding: 8px 10px;
-      border: 1px solid #ccc;
-      border-radius: 6px;
-      font-size: 1rem;
-      width: 100px;
-      transition: border-color 0.3s ease;
-    }
-    input[type="number"]:focus {
-      outline: none;
-      border-color: #2980b9;
-      box-shadow: 0 0 6px #2980b9aa;
-    }
-    select {
-      padding: 8px 10px;
-      border-radius: 6px;
-      border: 1px solid #ccc;
-      font-size: 1rem;
-      width: 150px;
-      cursor: pointer;
-      transition: border-color 0.3s ease;
-    }
-    select:focus {
-      outline: none;
-      border-color: #2980b9;
-      box-shadow: 0 0 6px #2980b9aa;
-    }
-    button {
-      background-color: #2980b9;
-      border: none;
-      padding: 12px 25px;
-      border-radius: 8px;
-      color: white;
-      font-weight: 600;
-      font-size: 1rem;
-      cursor: pointer;
-      transition: background-color 0.25s ease;
-      margin-right: 10px;
-      margin-top: 15px;
-      user-select: none;
-    }
-    button:hover {
-      background-color: #1c5980;
-    }
-    button:active {
-      background-color: #154361;
-    }
-    .image-block {
-      background: #f9fbfd;
-      border: 1px solid #e1e8ee;
-      padding: 15px 20px;
-      border-radius: 10px;
-      margin-bottom: 15px;
-      display: flex;
-      flex-wrap: wrap;
-      align-items: center;
-      gap: 15px;
-    }
-    .image-block strong {
-      flex-basis: 100%;
-      margin-bottom: 10px;
-      font-size: 1.05rem;
-      color: #2c3e50;
-    }
-    .image-block label {
-      flex: 1 1 140px;
-      margin-bottom: 0;
-      font-weight: 500;
-      display: flex;
-      align-items: center;
-      gap: 5px;
-    }
-    .checkbox-label {
-      display: flex;
-      align-items: center;
-      font-weight: 600;
-      color: #34495e;
-      margin-top: 10px;
-      user-select: none;
-    }
-    .checkbox-label input {
-      margin-right: 10px;
-      width: 18px;
-      height: 18px;
-      cursor: pointer;
-    }
-    #canvasContainer {
-      margin-top: 30px;
-      text-align: center;
-      overflow-x: auto;
-    }
-    canvas {
-      max-width: 100%;
-      border-radius: 12px;
-      box-shadow: 0 4px 14px rgb(0 0 0 / 0.1);
-      background: white;
-    }
-    @media (max-width: 600px) {
-      .image-block {
-        flex-direction: column;
-        align-items: flex-start;
-      }
-      .image-block label {
-        flex-basis: 100%;
-      }
-      input[type="number"], select {
-        width: 100%;
-      }
-      button {
-        width: 100%;
-        margin: 10px 0 0 0;
-      }
-    }
+    body { font-family: sans-serif; margin: 2rem; }
+    input[type="number"] { width: 60px; }
+    canvas { border: 1px solid #ccc; margin-top: 10px; }
+    table, td, th { border: 1px solid #ccc; border-collapse: collapse; padding: 5px; }
+    .hidden { display: none; }
   </style>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
-  <div class="container">
-    <h1>Photo Print Positioner (PPP)</h1>
+  <h1>Photo Print Positioner (PPP)</h1>
 
-    <label>
-      Képek feltöltése
-      <input type="file" id="imageUpload" multiple accept="image/*" />
-    </label>
+  <input type="file" id="fileInput" multiple accept="image/*"><br><br>
 
-    <div id="imageInputs"></div>
+  <table id="imageTable"></table>
 
-    <label>
-      Papírméret
-      <select id="paperSize">
-        <option value="10x15">10x15 cm</option>
-        <option value="9x13">9x13 cm</option>
-        <option value="11x17">11x17 cm</option>
-        <option value="13x18">13x18 cm</option>
-        <option value="A4">A4 (21x29.7 cm)</option>
-        <option value="A3">A3 (29.7x42 cm)</option>
-      </select>
-    </label>
+  <br>
+  <label><input type="checkbox" id="keepAspect"> Méretarány megtartása</label><br>
+  <label><input type="checkbox" id="optimize"> Optimalizálás a legolcsóbb elrendezésre</label><br>
 
-    <label>
-      Kimeneti fájl típusa
-      <select id="fileType">
-        <option value="png">PNG</option>
-        <option value="jpeg">JPEG</option>
-        <option value="pdf">PDF</option>
-      </select>
-    </label>
-
-    <label class="checkbox-label">
-      <input type="checkbox" id="optimizeLayout" />
-      Optimalizált elrendezés (forgatás engedélyezett)
-    </label>
-
-    <div>
-      <button id="generateBtn">Előnézet generálása</button>
-      <button id="downloadBtn">Letöltés</button>
-    </div>
-
-    <h3>Előnézet:</h3>
-    <div id="canvasContainer">
-      <canvas id="previewCanvas"></canvas>
-    </div>
+  <div id="optOptions" class="hidden">
+    <p>Adj meg elérhető papírméreteket (cm) és áraikat (Ft/lap):</p>
+    <table id="paperTable">
+      <tr><th>Szélesség</th><th>Magasság</th><th>Ár (Ft/lap)</th><th>Tiltás</th></tr>
+    </table>
+    <button onclick="addPaperSize()">+ Méret hozzáadása</button><br><br>
   </div>
 
+  <label for="outputFormat">Kimeneti formátum:</label>
+  <select id="outputFormat">
+    <option value="pdf">PDF</option>
+    <option value="jpeg">JPEG</option>
+    <option value="png">PNG</option>
+  </select><br><br>
+
+  <button onclick="generateLayout()">Előnézet generálása</button>
+  <button onclick="download()">Letöltés</button>
+
+  <div id="preview"></div>
   <script>
-    const imageUpload = document.getElementById('imageUpload');
-    const imageInputs = document.getElementById('imageInputs');
-    const canvas = document.getElementById('previewCanvas');
-    const ctx = canvas.getContext('2d');
-    const generateBtn = document.getElementById('generateBtn');
-    const downloadBtn = document.getElementById('downloadBtn');
-    const paperSizeSelect = document.getElementById('paperSize');
-    const fileTypeSelect = document.getElementById('fileType');
-    const optimizeCheckbox = document.getElementById('optimizeLayout');
+    const fileInput = document.getElementById("fileInput");
+    const imageTable = document.getElementById("imageTable");
+    const keepAspect = document.getElementById("keepAspect");
+    const optimize = document.getElementById("optimize");
+    const optOptions = document.getElementById("optOptions");
+    const paperTable = document.getElementById("paperTable");
+    const preview = document.getElementById("preview");
+    const images = [];
 
-    const dpi = 300;
-    let images = [];
+    optimize.addEventListener("change", () => {
+      optOptions.classList.toggle("hidden", !optimize.checked);
+    });
 
-    const paperSizes = {
-      '9x13': [9, 13],
-      '10x15': [10, 15],
-      '11x17': [11, 17],
-      '13x18': [13, 18],
-      'A4': [21, 29.7],
-      'A3': [29.7, 42]
-    };
-
-    function cmToPx(cm) {
-      return Math.round((cm / 2.54) * dpi);
+    function addPaperSize() {
+      const row = paperTable.insertRow();
+      for (let i = 0; i < 3; i++) {
+        const cell = row.insertCell();
+        const input = document.createElement("input");
+        input.type = "number";
+        input.step = "0.1";
+        input.required = true;
+        cell.appendChild(input);
+      }
+      const toggle = row.insertCell();
+      const chk = document.createElement("input");
+      chk.type = "checkbox";
+      toggle.appendChild(chk);
     }
 
-    // Új helper az oldalarány megtartáshoz
-    // megadott szélesség vagy magasság alapján méretezi az adott képet úgy, hogy megtartsa az eredeti képarányt
-    function sizeWithAspectRatio(img, targetWidthCm, targetHeightCm, keepRatio) {
-      if (!keepRatio) {
-        return [targetWidthCm, targetHeightCm];
-      }
-      const imgAspect = img.naturalWidth / img.naturalHeight;
-      const targetAspect = targetWidthCm / targetHeightCm;
-
-      if (imgAspect > targetAspect) {
-        // Szélességhez igazítunk, magasság arányosan
-        const height = targetWidthCm / imgAspect;
-        return [targetWidthCm, height];
-      } else {
-        // Magassághoz igazítunk, szélesség arányosan
-        const width = targetHeightCm * imgAspect;
-        return [width, targetHeightCm];
-      }
-    }
-
-    imageUpload.addEventListener('change', () => {
-      images = [];
-      imageInputs.innerHTML = '';
-
-      Array.from(imageUpload.files).forEach((file, i) => {
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          const img = new Image();
-          img.onload = () => {
-            images[i].img = img;
-          };
-          img.src = e.target.result;
-
-          images.push({
-            fileName: file.name,
-            img: null,
-            widthCm: 3,
-            heightCm: 4,
-            keepRatio: true,
-            count: 1,
-          });
-
-          const div = document.createElement('div');
-          div.className = 'image-block';
-          div.innerHTML = `
-            <strong>${file.name}</strong>
-            <label>Szélesség (cm):
-              <input type="number" min="0.1" step="0.1" value="3" id="width${i}" />
-            </label>
-            <label>Magasság (cm):
-              <input type="number" min="0.1" step="0.1" value="4" id="height${i}" />
-            </label>
-            <label>
-              <input type="checkbox" id="keepRatio${i}" checked />
-              Oldalarány megtartása
-            </label>
-            <label>Darabszám:
-              <input type="number" min="1" step="1" value="1" id="count${i}" />
-            </label>
-          `;
-          imageInputs.appendChild(div);
-
-          document.getElementById(`width${i}`).addEventListener('change', (ev) => {
-            images[i].widthCm = parseFloat(ev.target.value);
-          });
-          document.getElementById(`height${i}`).addEventListener('change', (ev) => {
-            images[i].heightCm = parseFloat(ev.target.value);
-          });
-          document.getElementById(`count${i}`).addEventListener('change', (ev) => {
-            images[i].count = Math.max(1, parseInt(ev.target.value));
-          });
-          document.getElementById(`keepRatio${i}`).addEventListener('change', (ev) => {
-            images[i].keepRatio = ev.target.checked;
-          });
-        };
-        reader.readAsDataURL(file);
+    fileInput.addEventListener("change", () => {
+      imageTable.innerHTML = "<tr><th>Név</th><th>Szél (cm)</th><th>Mag (cm)</th><th>Darabszám</th></tr>";
+      [...fileInput.files].forEach((file, index) => {
+        const row = imageTable.insertRow();
+        const name = row.insertCell();
+        name.textContent = file.name;
+        const wCell = row.insertCell();
+        const hCell = row.insertCell();
+        const nCell = row.insertCell();
+        [wCell, hCell].forEach(c => {
+          const input = document.createElement("input");
+          input.type = "number";
+          input.step = "0.1";
+          input.value = 4;
+          c.appendChild(input);
+        });
+        const nInput = document.createElement("input");
+        nInput.type = "number";
+        nInput.value = 1;
+        nInput.min = 1;
+        nCell.appendChild(nInput);
+        images[index] = { file, width: 4, height: 4, quantity: 1 };
+        wCell.firstChild.addEventListener("input", () => images[index].width = parseFloat(wCell.firstChild.value));
+        hCell.firstChild.addEventListener("input", () => images[index].height = parseFloat(hCell.firstChild.value));
+        nInput.addEventListener("input", () => images[index].quantity = parseInt(nInput.value));
       });
     });
 
-    async function drawLayout(ctx, paperWidthPx, paperHeightPx, optimize) {
-      ctx.clearRect(0, 0, paperWidthPx, paperHeightPx);
-      ctx.fillStyle = 'white';
-      ctx.fillRect(0, 0, paperWidthPx, paperHeightPx);
+    async function generateLayout() {
+      preview.innerHTML = "";
+      const useOpt = optimize.checked;
+      const format = document.getElementById("outputFormat").value;
+      const keepRatio = keepAspect.checked;
+
+      const canvas = document.createElement("canvas");
+      const ctx = canvas.getContext("2d");
+
+      let paperWidth = 1500, paperHeight = 1000;
+      canvas.width = paperWidth;
+      canvas.height = paperHeight;
+
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
 
       let x = 0, y = 0, rowHeight = 0;
 
-      for (const item of images) {
-        if (!item.img) continue;
+      for (let i = 0; i < images.length; i++) {
+        const { file, width, height, quantity } = images[i];
+        const img = new Image();
+        img.src = URL.createObjectURL(file);
+        await new Promise(resolve => {
+          img.onload = () => {
+            for (let j = 0; j < quantity; j++) {
+              let wPx = width * 100;
+              let hPx = height * 100;
 
-        for (let n = 0; n < item.count; n++) {
-          let [wCm, hCm] = sizeWithAspectRatio(item.img, item.widthCm, item.heightCm, item.keepRatio);
-
-          let wPx = cmToPx(wCm);
-          let hPx = cmToPx(hCm);
-          let rotated = false;
-
-          if (optimize) {
-            if (x + wPx > paperWidthPx && y + wPx <= paperHeightPx) {
-              if (hPx <= paperWidthPx) {
-                rotated = true;
-                [wPx, hPx] = [hPx, wPx];
+              if (x + wPx > canvas.width) {
+                x = 0;
+                y += rowHeight;
+                rowHeight = 0;
               }
+
+              if (y + hPx > canvas.height) {
+                break;
+              }
+
+              ctx.drawImage(img, x, y, wPx, hPx);
+              x += wPx;
+              rowHeight = Math.max(rowHeight, hPx);
             }
-          }
-
-          if (x + wPx > paperWidthPx) {
-            x = 0;
-            y += rowHeight;
-            rowHeight = 0;
-          }
-
-          if (y + hPx > paperHeightPx) {
-            return;
-          }
-
-          if (rotated) {
-            ctx.save();
-            ctx.translate(x + wPx / 2, y + hPx / 2);
-            ctx.rotate(Math.PI / 2);
-            ctx.drawImage(item.img, -hPx / 2, -wPx / 2, hPx, wPx);
-            ctx.restore();
-          } else {
-            ctx.drawImage(item.img, x, y, wPx, hPx);
-          }
-
-          x += wPx;
-          if (hPx > rowHeight) rowHeight = hPx;
-        }
+            resolve();
+          };
+        });
       }
+
+      const imgPreview = new Image();
+      imgPreview.src = canvas.toDataURL();
+      imgPreview.style.maxWidth = "100%";
+      preview.appendChild(imgPreview);
     }
 
-    async function generatePreview() {
-      const paper = paperSizeSelect.value;
-      const optimize = optimizeCheckbox.checked;
-      const [pwCm, phCm] = paperSizes[paper];
-      const pwPx = cmToPx(pwCm);
-      const phPx = cmToPx(phCm);
+    function download() {
+      const format = document.getElementById("outputFormat").value;
+      const canvas = document.querySelector("canvas");
+      if (!canvas) return;
 
-      canvas.width = pwPx;
-      canvas.height = phPx;
-
-      await drawLayout(ctx, pwPx, phPx, optimize);
-    }
-
-    async function downloadPDF() {
-      const { jsPDF } = window.jspdf;
-      const paper = paperSizeSelect.value;
-      const [pwCm, phCm] = paperSizes[paper];
-      const pdf = new jsPDF({
-        orientation: pwCm > phCm ? 'landscape' : 'portrait',
-        unit: 'mm',
-        format: [pwCm, phCm],
-      });
-
-      const dataUrl = canvas.toDataURL('image/png');
-      pdf.addImage(dataUrl, 'PNG', 0, 0, pwCm, phCm);
-      pdf.save('photo_layout.pdf');
-    }
-
-    async function downloadImage() {
-      const fileType = fileTypeSelect.value;
-      if (fileType === 'pdf') {
-        await downloadPDF();
+      const link = document.createElement("a");
+      if (format === "pdf") {
+        const pdf = new jspdf.jsPDF({ unit: "px", format: [canvas.width, canvas.height] });
+        pdf.addImage(canvas.toDataURL(), 'PNG', 0, 0);
+        pdf.save("output.pdf");
       } else {
-        let mime = 'image/png';
-        if (fileType === 'jpeg') mime = 'image/jpeg';
-        const dataUrl = canvas.toDataURL(mime);
-        const link = document.createElement('a');
-        link.href = dataUrl;
-        link.download = `photo_layout.${fileType}`;
+        link.href = canvas.toDataURL(`image/${format}`);
+        link.download = `output.${format}`;
         link.click();
       }
     }
-
-    generateBtn.onclick = generatePreview;
-    downloadBtn.onclick = downloadImage;
   </script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </body>
 </html>
