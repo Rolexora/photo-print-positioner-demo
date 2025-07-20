@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Photo Print Positioner – Teszt</title>
+</head>
+<body>
+  <h1>Photo Print Positioner – Teszt</h1>
+  <p>Tölts fel képet:</p>
+  <input type="file" id="fileInput" multiple accept="image/*"><br><br>
+  <div id="preview"></div>
+
+  <script>
+    const input = document.getElementById('fileInput');
+    const preview = document.getElementById('preview');
+
+    input.addEventListener('change', () => {
+      preview.innerHTML = '';
+      const files = input.files;
+      for (const file of files) {
+        const reader = new FileReader();
+        reader.onload = e => {
+          const img = document.createElement('img');
+          img.src = e.target.result;
+          img.style.maxWidth = '150px';
+          img.style.margin = '10px';
+          preview.appendChild(img);
+        };
+        reader.readAsDataURL(file);
+      }
+    });
+  </script>
+</body>
+</html>
