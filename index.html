@@ -1,39 +1,89 @@
-<!DOCTYPE html><html lang="hu">
+Rendben! Itt egy teljes HTML fájl, ami tartalmazza az eddigi funkciókat, plusz:
+
+PDF letöltés a jsPDF könyvtárral,
+
+optimalizált elrendezés forgatással (ha be van kapcsolva),
+
+kimeneti fájltípus választó (PNG, JPEG, PDF),
+
+és a képek egyedi méretállítása cm-ben, darabszám megadása.
+
+
+
+---
+
+<!DOCTYPE html>
+<html lang="hu">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Photo Print Positioner (PPP)</title>
   <style>
-    body {
-      font-family: sans-serif;
-      padding: 2rem;
-      max-width: 800px;
-      margin: auto;
-    }
-    input[type="number"] {
-      width: 5em;
-    }
-    canvas {
-      border: 1px solid #ccc;
-      margin-top: 1rem;
-    }
+    body { font-family: Arial, sans-serif; padding: 20px; background: #f9f9f9; }
+    .image-block { margin-bottom: 10px; }
+    label { display: inline-block; min-width: 120px; }
+    canvas { border: 1px solid #ccc; background: white; margin-top: 15px; max-width: 100%; height: auto; }
+    button { margin: 5px 10px 15px 0; padding: 8px 15px; }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 </head>
 <body>
   <h1>Photo Print Positioner (PPP)</h1>
-  <p>Tölts fel képeket, adj meg egyéni méreteket (cm-ben), és generálj elrendezést egy kiválasztott papírméretre.</p><label>Papírméret: <select id="paperSize"> <option value="9x13">9x13 cm</option> <option value="10x15">10x15 cm</option> <option value="11x17">11x17 cm</option> <option value="13x18">13x18 cm</option> <option value="A4">A4 (21x29.7 cm)</option> <option value="A3">A3 (29.7x42 cm)</option> </select> </label>
 
-<br /><br /> <input type="file" id="imageUpload" multiple accept="image/*" /> <button onclick="generatePreview()">Előnézet generálása</button> <button onclick="downloadImage()">Letöltés</button>
-
+  <input type="file" id="imageUpload" multiple accept="image/*" />
   <div id="imageInputs"></div>
-  <canvas id="previewCanvas"></canvas>  <script>
-    const imageInputs = document.getElementById('imageInputs');
+
+  <br />
+
+  <label>Papírméret:
+    <select id="paperSize">
+      <option value="10x15">10x15 cm</option>
+      <option value="9x13">9x13 cm</option>
+      <option value="11x17">11x17 cm</option>
+      <option value="13x18">13x18 cm</option>
+      <option value="A4">A4 (21x29.7 cm)</option>
+      <option value="A3">A3 (29.7x42 cm)</option>
+    </select>
+  </label>
+
+  <br /><br />
+
+  <label>Kimeneti fájl típusa:
+    <select id="fileType">
+      <option value="png">PNG</option>
+      <option value="jpeg">JPEG</option>
+      <option value="pdf">PDF</option>
+    </select>
+  </label>
+
+  <br /><br />
+
+  <label>
+    <input type="checkbox" id="optimizeLayout" />
+    Optimalizált elrendezés (forgatás engedélyezett)
+  </label>
+
+  <br /><br />
+
+  <button id="generateBtn">Előnézet generálása</button>
+  <button id="downloadBtn">Letöltés</button>
+
+  <h3>Előnézet:</h3>
+  <canvas id="previewCanvas"></canvas>
+
+  <script>
     const imageUpload = document.getElementById('imageUpload');
+    const imageInputs = document.getElementById('imageInputs');
     const canvas = document.getElementById('previewCanvas');
     const ctx = canvas.getContext('2d');
+    const generateBtn = document.getElementById('generateBtn');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const paperSizeSelect = document.getElementById('paperSize');
+    const fileTypeSelect = document.getElementById('fileType');
+    const optimizeCheckbox = document.getElementById('optimizeLayout');
 
+    const dpi = 300; // pont/inch, a kép pontosságához
     let images = [];
-    let imageSettings = [];
 
     const paperSizes = {
       '9x13': [9, 13],
@@ -44,69 +94,188 @@
       'A3': [29.7, 42]
     };
 
-    imageUpload.addEventListener('change', (e) => {
+    function cmToPx(cm) {
+      return Math.round((cm / 2.54) * dpi);
+    }
+
+    imageUpload.addEventListener('change', () => {
       images = [];
-      imageSettings = [];
       imageInputs.innerHTML = '';
 
-      Array.from(e.target.files).forEach((file, index) => {
+      Array.from(imageUpload.files).forEach((file, i) => {
         const reader = new FileReader();
-        reader.onload = function (event) {
+        reader.onload = (e) => {
           const img = new Image();
-          img.onload = function () {
-            images.push(img);
-            imageSettings.push({ width: 3, height: 4 }); // alapértelmezett méret
-
-            const div = document.createElement('div');
-            div.innerHTML = `Kép ${index + 1} - Szélesség (cm): <input type="number" step="0.1" value="3" onchange="updateSize(${index}, 'width', this.value)" /> Magasság (cm): <input type="number" step="0.1" value="4" onchange="updateSize(${index}, 'height', this.value)" />`;
-            imageInputs.appendChild(div);
+          img.onload = () => {
+            images[i].img = img;
           };
-          img.src = event.target.result;
+          img.src = e.target.result;
+
+          images.push({
+            fileName: file.name,
+            img: null,
+            widthCm: 3,
+            heightCm: 4,
+            count: 1,
+          });
+
+          const div = document.createElement('div');
+          div.className = 'image-block';
+          div.innerHTML = `
+            <strong>${file.name}</strong><br>
+            Szélesség (cm): <input type="number" min="0.1" step="0.1" value="3" id="width${i}" style="width:60px;" />
+            Magasság (cm): <input type="number" min="0.1" step="0.1" value="4" id="height${i}" style="width:60px;" />
+            Darabszám: <input type="number" min="1" step="1" value="1" id="count${i}" style="width:50px;" />
+          `;
+          imageInputs.appendChild(div);
+
+          // input event-ek frissítéshez
+          document.getElementById(`width${i}`).addEventListener('change', (ev) => {
+            images[i].widthCm = parseFloat(ev.target.value);
+          });
+          document.getElementById(`height${i}`).addEventListener('change', (ev) => {
+            images[i].heightCm = parseFloat(ev.target.value);
+          });
+          document.getElementById(`count${i}`).addEventListener('change', (ev) => {
+            images[i].count = Math.max(1, parseInt(ev.target.value));
+          });
         };
         reader.readAsDataURL(file);
       });
     });
 
-    function updateSize(index, dim, value) {
-      imageSettings[index][dim] = parseFloat(value);
-    }
-
-    function generatePreview() {
-      const [paperWcm, paperHcm] = paperSizes[document.getElementById('paperSize').value];
-      const dpi = 300;
-      const paperWpx = (paperWcm / 2.54) * dpi;
-      const paperHpx = (paperHcm / 2.54) * dpi;
-
-      canvas.width = paperWpx;
-      canvas.height = paperHpx;
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+    // Egyszerű 2D “csomagoló” algoritmus forgatással (Optimalizálás)
+    // Ha nem fér el, sorba lépünk, sor magassága a legmagasabb elem sorban
+    // Forgatás esetén a képet 90 fokkal elforgatjuk, ha az jobban elfér
+    async function drawLayout(ctx, paperWidthPx, paperHeightPx, optimize) {
+      ctx.clearRect(0, 0, paperWidthPx, paperHeightPx);
+      ctx.fillStyle = 'white';
+      ctx.fillRect(0, 0, paperWidthPx, paperHeightPx);
 
       let x = 0, y = 0, rowHeight = 0;
-      images.forEach((img, i) => {
-        const wcm = imageSettings[i].width;
-        const hcm = imageSettings[i].height;
-        const wpx = (wcm / 2.54) * dpi;
-        const hpx = (hcm / 2.54) * dpi;
 
-        if (x + wpx > canvas.width) {
-          x = 0;
-          y += rowHeight;
-          rowHeight = 0;
-        }
+      for (const item of images) {
+        if (!item.img) continue;
+        for (let n = 0; n < item.count; n++) {
+          let wPx = cmToPx(item.widthCm);
+          let hPx = cmToPx(item.heightCm);
+          let rotated = false;
 
-        if (y + hpx <= canvas.height) {
-          ctx.drawImage(img, x, y, wpx, hpx);
-          x += wpx;
-          if (hpx > rowHeight) rowHeight = hpx;
+          if (optimize) {
+            // Ha az eredeti elhelyezés nem fér el, de a forgatott igen, forgatjuk
+            if (x + wPx > paperWidthPx && y + wPx <= paperHeightPx) {
+              if (hPx <= paperWidthPx) {
+                rotated = true;
+                [wPx, hPx] = [hPx, wPx];
+              }
+            }
+          }
+
+          if (x + wPx > paperWidthPx) {
+            x = 0;
+            y += rowHeight;
+            rowHeight = 0;
+          }
+
+          if (y + hPx > paperHeightPx) {
+            // Nem fér már el több kép
+            return;
+          }
+
+          if (rotated) {
+            ctx.save();
+            ctx.translate(x + wPx / 2, y + hPx / 2);
+            ctx.rotate(Math.PI / 2);
+            ctx.drawImage(item.img, -hPx / 2, -wPx / 2, hPx, wPx);
+            ctx.restore();
+          } else {
+            ctx.drawImage(item.img, x, y, wPx, hPx);
+          }
+
+          x += wPx;
+          if (hPx > rowHeight) rowHeight = hPx;
         }
+      }
+    }
+
+    async function generatePreview() {
+      const paper = paperSizeSelect.value;
+      const optimize = optimizeCheckbox.checked;
+      const [pwCm, phCm] = paperSizes[paper];
+      const pwPx = cmToPx(pwCm);
+      const phPx = cmToPx(phCm);
+
+      canvas.width = pwPx;
+      canvas.height = phPx;
+
+      await drawLayout(ctx, pwPx, phPx, optimize);
+    }
+
+    async function downloadPDF() {
+      const { jsPDF } = window.jspdf;
+      const paper = paperSizeSelect.value;
+      const [pwCm, phCm] = paperSizes[paper];
+      const pdf = new jsPDF({
+        orientation: pwCm > phCm ? 'landscape' : 'portrait',
+        unit: 'mm',
+        format: [pwCm, phCm],
       });
+
+      const dataUrl = canvas.toDataURL('image/png');
+      pdf.addImage(dataUrl, 'PNG', 0, 0, pwCm, phCm);
+      pdf.save('photo_layout.pdf');
     }
 
-    function downloadImage() {
-      const link = document.createElement('a');
-      link.download = 'layout.png';
-      link.href = canvas.toDataURL();
-      link.click();
+    async function downloadImage() {
+      const fileType = fileTypeSelect.value;
+      if (fileType === 'pdf') {
+        await downloadPDF();
+      } else {
+        let mime = 'image/png';
+        if (fileType === 'jpeg') mime = 'image/jpeg';
+        const dataUrl = canvas.toDataURL(mime);
+        const link = document.createElement('a');
+        link.href = dataUrl;
+        link.download = `photo_layout.${fileType}`;
+        link.click();
+      }
     }
-  </script></body>
+
+    generateBtn.onclick = generatePreview;
+    downloadBtn.onclick = downloadImage;
+  </script>
+</body>
 </html>
+
+
+---
+
+Használat:
+
+1. Tölts fel több képet.
+
+
+2. Minden képnél add meg a kívánt szélességet, magasságot (cm), és darabszámot.
+
+
+3. Válaszd ki a papírméretet.
+
+
+4. Kapcsold be az optimalizált elrendezést, ha szeretnéd, hogy forgasson a program, ha így kevesebb helyet foglalnak.
+
+
+5. Válaszd ki a kimeneti fájlformátumot (PNG, JPEG, PDF).
+
+
+6. Kattints az "Előnézet generálása" gombra az elrendezés megtekintéséhez.
+
+
+7. Kattints a "Letöltés" gombra a kész fájl mentéséhez.
+
+
+
+
+---
+
+Ha szeretnéd, segítek, hogy ezt beállítsd, vagy ha tovább szeretnéd fejleszteni!
+
