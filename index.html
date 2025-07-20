@@ -1,248 +1,104 @@
-<!DOCTYPE html>
-<html lang="hu">
+<!DOCTYPE html><html lang="en">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Photo Print Positioner Demo</title>
-<style>
-  body { font-family: Arial, sans-serif; margin: 20px; max-width: 900px; }
-  h1 { text-align: center; }
-  label { font-weight: bold; margin-top: 10px; display: block; }
-  input[type="number"] { width: 60px; }
-  table { border-collapse: collapse; width: 100%; margin-top: 10px; }
-  th, td { border: 1px solid #ccc; padding: 8px; text-align: center; }
-  th { background: #eee; }
-  .preview {
-    margin-top: 20px;
-    border: 1px solid #666;
-    position: relative;
-    width: 450px;
-    height: 300px;
-    background: #fafafa;
-  }
-  .box {
-    position: absolute;
-    border: 2px solid #007BFF;
-    background-color: rgba(0,123,255,0.1);
-    overflow: hidden;
-    font-size: 12px;
-    color: #007BFF;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-  }
-  .img-thumb {
-    max-width: 50px;
-    max-height: 50px;
-  }
-  #file-input {
-    margin-top: 5px;
-  }
-</style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Photo Print Positioner (PPP)</title>
+  <style>
+    body { font-family: sans-serif; padding: 1rem; }
+    .image-entry { border: 1px solid #ccc; padding: 10px; margin-bottom: 10px; }
+    label { display: block; margin-top: 5px; }
+    canvas { border: 1px solid #000; margin-top: 1rem; }
+  </style>
 </head>
 <body>
+  <h1>Photo Print Positioner (PPP)</h1>
+  <input type="file" id="fileInput" multiple accept="image/*" />
+  <div id="imageList"></div>
+  <label>Papírméret:
+    <select id="paperSize">
+      <option value="9x13">9x13 cm</option>
+      <option value="10x15">10x15 cm</option>
+      <option value="11x17">11x17 cm</option>
+      <option value="13x18">13x18 cm</option>
+      <option value="21x29.7">A4 (21x29.7 cm)</option>
+      <option value="29.7x42">A3 (29.7x42 cm)</option>
+    </select>
+  </label>
+  <button onclick="generatePDF()">PDF letöltése</button>  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>  <script>
+    const { jsPDF } = window.jspdf;
+    const imageList = document.getElementById("imageList");
+    const fileInput = document.getElementById("fileInput");
+    let images = [];
 
-<h1>Photo Print Positioner Demo</h1>
-
-<label for="template-select">Nyomdai sablon méret (cm):</label>
-<select id="template-select">
-  <option value="9x13">9 x 13</option>
-  <option value="10x15" selected>10 x 15</option>
-  <option value="11x17">11 x 17</option>
-  <option value="13x18">13 x 18</option>
-  <option value="A4">A4 (21 x 29.7)</option>
-  <option value="A3">A3 (29.7 x 42)</option>
-</select>
-
-<label for="file-input">Képek feltöltése:</label>
-<input type="file" id="file-input" multiple accept="image/*" />
-
-<table id="images-table" style="display:none;">
-  <thead>
-    <tr>
-      <th>Kép</th><th>Név</th><th>Szélesség (cm)</th><th>Magasság (cm)</th><th>Darabszám</th><th>Törlés</th>
-    </tr>
-  </thead>
-  <tbody></tbody>
-</table>
-
-<div class="preview" id="preview-box">
-  <p style="text-align:center; padding-top:130px; color:#666;">Itt jelenik meg az elrendezés</p>
-</div>
-
-<script>
-const fileInput = document.getElementById('file-input');
-const imagesTable = document.getElementById('images-table');
-const tbody = imagesTable.querySelector('tbody');
-const previewBox = document.getElementById('preview-box');
-const templateSelect = document.getElementById('template-select');
-
-let images = [];
-
-function cmToPx(cm, templateWidthCm, templatePxWidth) {
-  return (cm / templateWidthCm) * templatePxWidth;
-}
-
-function getTemplateDimensions() {
-  switch(templateSelect.value) {
-    case '9x13': return {w: 9, h: 13, pw: 450, ph: 650};
-    case '10x15': return {w: 10, h: 15, pw: 450, ph: 675};
-    case '11x17': return {w: 11, h: 17, pw: 450, ph: 695};
-    case '13x18': return {w: 13, h: 18, pw: 450, ph: 620};
-    case 'A4': return {w: 21, h: 29.7, pw: 450, ph: 636};
-    case 'A3': return {w: 29.7, h: 42, pw: 450, ph: 636};
-    default: return {w: 10, h: 15, pw: 450, ph: 675};
-  }
-}
-
-function updateTable() {
-  tbody.innerHTML = '';
-  if(images.length === 0) {
-    imagesTable.style.display = 'none';
-    previewBox.innerHTML = '<p style="text-align:center; padding-top:130px; color:#666;">Itt jelenik meg az elrendezés</p>';
-    return;
-  }
-  imagesTable.style.display = 'table';
-
-  images.forEach((img, idx) => {
-    const tr = document.createElement('tr');
-
-    const tdPreview = document.createElement('td');
-    const imgThumb = document.createElement('img');
-    imgThumb.src = img.url;
-    imgThumb.className = 'img-thumb';
-    tdPreview.appendChild(imgThumb);
-
-    const tdName = document.createElement('td');
-    tdName.textContent = img.name;
-
-    const tdWidth = document.createElement('td');
-    const widthInput = document.createElement('input');
-    widthInput.type = 'number';
-    widthInput.min = '0.1';
-    widthInput.step = '0.1';
-    widthInput.value = img.width;
-    widthInput.style.width = '60px';
-    widthInput.addEventListener('change', (e) => {
-      img.width = parseFloat(e.target.value) || 1;
-      drawPreview();
+    fileInput.addEventListener("change", (e) => {
+      imageList.innerHTML = "";
+      images = [];
+      [...e.target.files].forEach((file, idx) => {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = new Image();
+          img.src = ev.target.result;
+          img.onload = () => {
+            const container = document.createElement("div");
+            container.className = "image-entry";
+            container.innerHTML = `
+              <strong>${file.name}</strong><br>
+              <label>Darabszám: <input type="number" value="1" min="1" data-idx="${idx}" class="count-input" /></label>
+              <label>Szélesség (cm): <input type="number" step="0.1" value="3" data-idx="${idx}" class="width-input" /></label>
+              <label>Magasság (cm): <input type="number" step="0.1" value="4" data-idx="${idx}" class="height-input" /></label>
+              <label><input type="checkbox" data-idx="${idx}" class="keep-ratio" checked /> Arány megtartása</label>
+            `;
+            imageList.appendChild(container);
+            images[idx] = { file, src: img.src, width: 3, height: 4, count: 1, keepRatio: true, naturalWidth: img.naturalWidth, naturalHeight: img.naturalHeight };
+            container.querySelector(".count-input").addEventListener("input", (e) => images[idx].count = parseInt(e.target.value));
+            container.querySelector(".width-input").addEventListener("input", (e) => {
+              images[idx].width = parseFloat(e.target.value);
+              if (images[idx].keepRatio) {
+                const ratio = images[idx].naturalHeight / images[idx].naturalWidth;
+                images[idx].height = +(images[idx].width * ratio).toFixed(2);
+                container.querySelector(".height-input").value = images[idx].height;
+              }
+            });
+            container.querySelector(".height-input").addEventListener("input", (e) => {
+              images[idx].height = parseFloat(e.target.value);
+              if (images[idx].keepRatio) {
+                const ratio = images[idx].naturalWidth / images[idx].naturalHeight;
+                images[idx].width = +(images[idx].height * ratio).toFixed(2);
+                container.querySelector(".width-input").value = images[idx].width;
+              }
+            });
+            container.querySelector(".keep-ratio").addEventListener("change", (e) => images[idx].keepRatio = e.target.checked);
+          };
+        };
+        reader.readAsDataURL(file);
+      });
     });
-    tdWidth.appendChild(widthInput);
 
-    const tdHeight = document.createElement('td');
-    const heightInput = document.createElement('input');
-    heightInput.type = 'number';
-    heightInput.min = '0.1';
-    heightInput.step = '0.1';
-    heightInput.value = img.height;
-    heightInput.style.width = '60px';
-    heightInput.addEventListener('change', (e) => {
-      img.height = parseFloat(e.target.value) || 1;
-      drawPreview();
-    });
-    tdHeight.appendChild(heightInput);
+    function generatePDF() {
+      const paperSelect = document.getElementById("paperSize").value;
+      const [paperWcm, paperHcm] = paperSelect.split("x").map(parseFloat);
+      const pdf = new jsPDF({ unit: "cm", format: [paperWcm, paperHcm] });
 
-    const tdCount = document.createElement('td');
-    const countInput = document.createElement('input');
-    countInput.type = 'number';
-    countInput.min = '1';
-    countInput.step = '1';
-    countInput.value = img.count;
-    countInput.style.width = '60px';
-    countInput.addEventListener('change', (e) => {
-      img.count = parseInt(e.target.value) || 1;
-      drawPreview();
-    });
-    tdCount.appendChild(countInput);
+      let x = 0, y = 0, page = 0;
+      images.forEach((imgData) => {
+        const img = new Image();
+        img.src = imgData.src;
+        for (let i = 0; i < imgData.count; i++) {
+          if (x + imgData.width > paperWcm) {
+            x = 0;
+            y += imgData.height;
+          }
+          if (y + imgData.height > paperHcm) {
+            pdf.addPage();
+            x = 0;
+            y = 0;
+          }
+          pdf.addImage(imgData.src, "JPEG", x, y, imgData.width, imgData.height);
+          x += imgData.width;
+        }
+      });
 
-    const tdDelete = document.createElement('td');
-    const delBtn = document.createElement('button');
-    delBtn.textContent = 'X';
-    delBtn.style.color = 'red';
-    delBtn.addEventListener('click', () => {
-      images.splice(idx, 1);
-      updateTable();
-    });
-    tdDelete.appendChild(delBtn);
-
-    tr.appendChild(tdPreview);
-    tr.appendChild(tdName);
-    tr.appendChild(tdWidth);
-    tr.appendChild(tdHeight);
-    tr.appendChild(tdCount);
-    tr.appendChild(tdDelete);
-
-    tbody.appendChild(tr);
-  });
-  drawPreview();
-}
-
-function drawPreview() {
-  const { w: tplWcm, h: tplHcm, pw: tplWpx, ph: tplHpx } = getTemplateDimensions();
-  previewBox.style.width = tplWpx + 'px';
-  previewBox.style.height = tplHpx + 'px';
-  previewBox.innerHTML = '';
-
-  // egyszerű, sorba helyezés (nem optimalizált)  
-  let offsetX = 0;
-  let offsetY = 0;
-  let rowHeight = 0;
-
-  for(let img of images) {
-    for(let i=0; i < img.count; i++) {
-      const boxW = cmToPx(img.width, tplWcm, tplWpx);
-      const boxH = cmToPx(img.height, tplHcm, tplHpx);
-
-      if(offsetX + boxW > tplWpx) {
-        offsetX = 0;
-        offsetY += rowHeight;
-        rowHeight = 0;
-      }
-      if(offsetY + boxH > tplHpx) {
-        // Nem fér el több kép - megállunk
-        break;
-      }
-
-      const div = document.createElement('div');
-      div.className = 'box';
-      div.style.left = offsetX + 'px';
-      div.style.top = offsetY + 'px';
-      div.style.width = boxW + 'px';
-      div.style.height = boxH + 'px';
-      div.textContent = img.name;
-
-      previewBox.appendChild(div);
-
-      offsetX += boxW;
-      if(boxH > rowHeight) rowHeight = boxH;
+      pdf.save("photo-print.pdf");
     }
-  }
-
-  if(images.length === 0) {
-    previewBox.innerHTML = '<p style="text-align:center; padding-top:130px; color:#666;">Itt jelenik meg az elrendezés</p>';
-  }
-}
-
-fileInput.addEventListener('change', (e) => {
-  const files = Array.from(e.target.files);
-  for(let f of files) {
-    const url = URL.createObjectURL(f);
-    images.push({
-      name: f.name,
-      url: url,
-      width: 3,
-      height: 4,
-      count: 1,
-    });
-  }
-  updateTable();
-});
-
-templateSelect.addEventListener('change', () => {
-  drawPreview();
-});
-</script>
-
-</body>
+  </script></body>
 </html>
-    
